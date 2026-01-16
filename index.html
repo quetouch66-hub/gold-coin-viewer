@@ -54,23 +54,22 @@
 
             // --- MATERIALS ---
             
-            // Helper to Apply the "Step 2" Flip AND the "Zoom" Fix
+            // Helper to Apply: ZOOM + MIRROR FIX + ROTATION
             function applyCorrectOrientation(tex) {
-                // 1. HORIZONTAL FLIP (Fixes Mirroring & Upside Down)
-                // We use vScale = -1 from Step 2
+                // 1. ZOOM (Fixes Black Ring)
+                tex.uScale = 1.03;      
                 
-                // 2. ZOOM (Fixes Black Ring)
-                // We combine the Flip (-1) with the Zoom (1.03) -> -1.03
+                // 2. HORIZONTAL FLIP (Fixes Mirroring)
+                // We flip the V-Axis to make the man face Right
+                tex.vScale = -1.03;     
                 
-                tex.uScale = 1.03;      // Zoom U
-                tex.vScale = -1.03;     // Zoom V + Flip V
+                // 3. CENTERING OFFSETS
+                tex.uOffset = -0.015;   
+                tex.vOffset = 1.015;    
                 
-                // 3. OFFSETS (Re-center image)
-                tex.uOffset = -0.015;   // Center U
-                tex.vOffset = 1.015;    // Center V (Logic: Start at 1.0 + half the zoom)
-                
-                // 4. Reset Rotation (Step 2 proved we don't need wAng)
-                tex.wAng = 0;
+                // 4. ROTATION (Fixes Upside Down)
+                // We MUST keep this at PI (180 degrees) so 2025 stays at the bottom
+                tex.wAng = Math.PI;
             }
 
             // 1. Front Material
@@ -80,7 +79,7 @@
             frontMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6); 
             
             const frontTex = new BABYLON.Texture("coin_front.png", scene);
-            applyCorrectOrientation(frontTex); // <--- APPLY THE COMBINED FIX
+            applyCorrectOrientation(frontTex); 
             frontMat.diffuseTexture = frontTex; 
             
             const frontBump = new BABYLON.Texture("coin_front.png", scene);
@@ -95,7 +94,7 @@
             backMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6);
 
             const backTex = new BABYLON.Texture("coin_back.png", scene);
-            applyCorrectOrientation(backTex); // <--- APPLY THE COMBINED FIX
+            applyCorrectOrientation(backTex);
             backMat.diffuseTexture = backTex;
             
             const backBump = new BABYLON.Texture("coin_back.png", scene);
