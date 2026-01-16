@@ -42,117 +42,140 @@
 
             // --- LIGHTING ---
             const light1 = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
-            light1.intensity = 1.2;
-            light1.diffuse = new BABYLON.Color3(1, 0.95, 0.8); // Warm Gold Light
+            light1.intensity = 1.1;
+            light1.diffuse = new BABYLON.Color3(1, 0.95, 0.85); // Soft Warm Light
 
             const light2 = new BABYLON.HemisphericLight("light2", new BABYLON.Vector3(0, -1, 0), scene);
             light2.intensity = 0.8; 
 
+            // Follow light for highlights
             const pointLight = new BABYLON.PointLight("pointLight", new BABYLON.Vector3(0, 0, 0), scene);
             pointLight.parent = camera;
-            pointLight.intensity = 0.6;
+            pointLight.intensity = 0.7;
 
             // --- MATERIALS ---
             
-            // Shared function to fix the texture border issues
-            function fixTexture(tex) {
-                // 1. CLAMP: Prevents the black edge from repeating
-                tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-                tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-                
-                // 2. ZOOM: Push the black pixels OFF the edge of the mesh
-                tex.uScale = 1.03; // 3% zoom
-                tex.vScale = 1.03;
-                
-                // 3. CENTER: Re-align after zooming
-                tex.uOffset = -0.015; 
-                tex.vOffset = -0.015;
-            }
+            // 1. Shared Gold Base (This ensures the blend)
+            const GOLD_COLOR = new BABYLON.Color3(1.0, 0.84, 0.0);
+            const GOLD_EMISSIVE = new BABYLON.Color3(0.2, 0.15, 0.0);
+            const GOLD_SPECULAR = new BABYLON.Color3(1, 0.9, 0.6);
 
-            // 1. Front Material
+            // 2. Front Material
             const frontMat = new BABYLON.StandardMaterial("frontMat", scene);
-            frontMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0);
-            frontMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0); 
-            frontMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6); // Soft Gold Highlight
+            frontMat.diffuseColor = GOLD_COLOR;
+            frontMat.emissiveColor = GOLD_EMISSIVE;
+            frontMat.specularColor = GOLD_SPECULAR;
             
             const frontTex = new BABYLON.Texture("coin_front.png", scene);
-            frontTex.wAng = Math.PI; 
-            fixTexture(frontTex); // <--- APPLY THE FIX
+            frontTex.wAng = Math.PI;
+            // Slight zoom to ensure image fills the space inside the rim
+            frontTex.uScale = 1.01; 
+            frontTex.vScale = 1.01;
             frontMat.diffuseTexture = frontTex; 
             
             const frontBump = new BABYLON.Texture("coin_front.png", scene);
             frontBump.wAng = Math.PI;
-            fixTexture(frontBump); // <--- APPLY THE FIX TO BUMP TOO
+            frontBump.uScale = 1.01;
+            frontBump.vScale = 1.01;
             frontMat.bumpTexture = frontBump;
-            frontMat.bumpTexture.level = 0.4;
+            frontMat.bumpTexture.level = 0.5;
 
-            // 2. Back Material
+            // 3. Back Material
             const backMat = new BABYLON.StandardMaterial("backMat", scene);
-            backMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0);
-            backMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0); 
-            backMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6);
+            backMat.diffuseColor = GOLD_COLOR;
+            backMat.emissiveColor = GOLD_EMISSIVE;
+            backMat.specularColor = GOLD_SPECULAR;
 
             const backTex = new BABYLON.Texture("coin_back.png", scene);
             backTex.wAng = Math.PI; 
-            fixTexture(backTex); // <--- APPLY THE FIX
+            backTex.uScale = 1.01; 
+            backTex.vScale = 1.01;
             backMat.diffuseTexture = backTex;
             
             const backBump = new BABYLON.Texture("coin_back.png", scene);
-            backBump.wAng = Math.PI;
-            fixTexture(backBump); // <--- APPLY THE FIX
+            backBump.wAng = Math.PI; 
+            backBump.uScale = 1.01;
+            backBump.vScale = 1.01;
             backMat.bumpTexture = backBump;
-            backMat.bumpTexture.level = 0.4;
+            backMat.bumpTexture.level = 0.5;
 
-            // 3. Edge Material (Reeded)
+            // 4. Edge & Rim Material (Seamless Blend)
             const edgeMat = new BABYLON.StandardMaterial("edgeMat", scene);
-            // MATCHING COLOR EXACTLY TO FACE TO "BLEND"
-            edgeMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0); 
-            edgeMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0);
-            // Dull specular to look like matte metal, not chrome
-            edgeMat.specularColor = new BABYLON.Color3(0.6, 0.5, 0.2); 
+            edgeMat.diffuseColor = GOLD_COLOR; // Exact Match
+            edgeMat.emissiveColor = GOLD_EMISSIVE;
+            edgeMat.specularColor = new BABYLON.Color3(0.6, 0.5, 0.2); // Matte finish
             
+            // Deep Ridge Noise
             const noiseTexture = new BABYLON.NoiseProceduralTexture("perlin", 256, scene);
+            noiseTexture.animationSpeedFactor = 0;
             edgeMat.bumpTexture = noiseTexture;
-            edgeMat.bumpTexture.uScale = 150; // Vertical Ridges
+            edgeMat.bumpTexture.uScale = 150; 
             edgeMat.bumpTexture.vScale = 1; 
             edgeMat.bumpTexture.level = 2.0;
 
-            // --- GEOMETRY ---
+            // --- GEOMETRY: THE "RIM WRAP" TECHNIQUE ---
             const coinNode = new BABYLON.TransformNode("root");
+            const diameter = 3.0;
+            const thickness = 0.15;
 
-            // Edge (Diameter 3.0)
+            // A. The Main Body (Edge)
             const coinEdge = BABYLON.MeshBuilder.CreateCylinder("edge", { 
-                diameter: 3.0, 
-                height: 0.15, 
+                diameter: diameter, 
+                height: thickness, 
                 tessellation: 128 
             }, scene);
             coinEdge.material = edgeMat;
             coinEdge.parent = coinNode;
 
-            // Front Face (Diameter 3.0 - MATCHED EXACTLY)
+            // B. The Front Face
             const coinFront = BABYLON.MeshBuilder.CreateCylinder("front", { 
-                diameter: 3.0, 
+                diameter: diameter - 0.05, // Slightly smaller to sit inside the rim
                 height: 0.001, 
                 tessellation: 128 
             }, scene);
             coinFront.material = frontMat;
-            coinFront.position.y = 0.076; 
+            coinFront.position.y = (thickness / 2) + 0.001; 
             coinFront.parent = coinNode;
 
-            // Back Face (Diameter 3.0 - MATCHED EXACTLY)
+            // C. The Back Face
             const coinBack = BABYLON.MeshBuilder.CreateCylinder("back", { 
-                diameter: 3.0, 
+                diameter: diameter - 0.05, 
                 height: 0.001, 
                 tessellation: 128 
             }, scene);
             coinBack.material = backMat;
-            coinBack.position.y = -0.076; 
+            coinBack.position.y = -(thickness / 2) - 0.001; 
             coinBack.rotation.x = Math.PI; 
             coinBack.rotation.y = Math.PI; 
             coinBack.parent = coinNode;
 
+            // D. THE FIX: Front Rim (Torus Ring)
+            // This physical ring covers the jagged texture edge
+            const rimFront = BABYLON.MeshBuilder.CreateTorus("rimFront", {
+                diameter: diameter - 0.05, // Sits exactly on the edge
+                thickness: 0.05,           // Thickness of the "Wire"
+                tessellation: 64
+            }, scene);
+            rimFront.position.y = (thickness / 2);
+            rimFront.scaling.y = 0.5; // Flatten it slightly
+            rimFront.material = edgeMat; // Use Edge Material to "Wrap" the ridges
+            rimFront.parent = coinNode;
+
+            // E. THE FIX: Back Rim (Torus Ring)
+            const rimBack = BABYLON.MeshBuilder.CreateTorus("rimBack", {
+                diameter: diameter - 0.05,
+                thickness: 0.05,
+                tessellation: 64
+            }, scene);
+            rimBack.position.y = -(thickness / 2);
+            rimBack.scaling.y = 0.5;
+            rimBack.material = edgeMat; // Wrap the ridges here too
+            rimBack.parent = coinNode;
+
+            // Orientation
             coinNode.rotation.x = Math.PI / 2;
 
+            // Animation
             scene.registerBeforeRender(function () {
                 coinNode.rotation.y += 0.005; 
             });
