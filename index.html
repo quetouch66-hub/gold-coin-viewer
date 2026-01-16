@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Interactive Coin - Step 2: Axis Flip Fix</title>
+    <title>Interactive Commemorative Coin</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     
@@ -32,64 +32,129 @@
 
         const createScene = function () {
             const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color4(0.95, 0.95, 0.95, 1);
+            scene.clearColor = new BABYLON.Color4(0.95, 0.95, 0.95, 1); 
 
+            // --- CAMERA ---
             const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 4.5, BABYLON.Vector3.Zero(), scene);
             camera.attachControl(canvas, true);
+            camera.wheelPrecision = 50; 
             camera.minZ = 0.1;
 
-            const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+            // --- LIGHTING ---
+            const light1 = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+            light1.intensity = 1.2;
+            light1.diffuse = new BABYLON.Color3(1, 0.95, 0.8); // Warm Gold Light
+
+            const light2 = new BABYLON.HemisphericLight("light2", new BABYLON.Vector3(0, -1, 0), scene);
+            light2.intensity = 0.8; 
+
+            const pointLight = new BABYLON.PointLight("pointLight", new BABYLON.Vector3(0, 0, 0), scene);
+            pointLight.parent = camera;
+            pointLight.intensity = 0.6;
 
             // --- MATERIALS ---
+            
+            // Shared function to fix the texture border issues
+            function fixTexture(tex) {
+                // 1. CLAMP: Prevents the black edge from repeating
+                tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+                tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+                
+                // 2. ZOOM: Push the black pixels OFF the edge of the mesh
+                tex.uScale = 1.03; // 3% zoom
+                tex.vScale = 1.03;
+                
+                // 3. CENTER: Re-align after zooming
+                tex.uOffset = -0.015; 
+                tex.vOffset = -0.015;
+            }
+
+            // 1. Front Material
             const frontMat = new BABYLON.StandardMaterial("frontMat", scene);
+            frontMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0);
+            frontMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0); 
+            frontMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6); // Soft Gold Highlight
+            
             const frontTex = new BABYLON.Texture("coin_front.png", scene);
+            frontTex.wAng = Math.PI; 
+            fixTexture(frontTex); // <--- APPLY THE FIX
+            frontMat.diffuseTexture = frontTex; 
             
-            // *** STEP 2 FIX: FLIP V-AXIS INSTEAD OF U-AXIS ***
-            // If uScale flipped it Vertical, then vScale must flip it Horizontal.
-            frontTex.uScale = 1; 
-            frontTex.vScale = -1; // Flip the OTHER axis
-            frontTex.vOffset = 1; // Reset position
-            // ************************************************
-            
-            frontMat.emissiveTexture = frontTex;
-            frontMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+            const frontBump = new BABYLON.Texture("coin_front.png", scene);
+            frontBump.wAng = Math.PI;
+            fixTexture(frontBump); // <--- APPLY THE FIX TO BUMP TOO
+            frontMat.bumpTexture = frontBump;
+            frontMat.bumpTexture.level = 0.4;
 
+            // 2. Back Material
             const backMat = new BABYLON.StandardMaterial("backMat", scene);
-            const backTex = new BABYLON.Texture("coin_back.png", scene);
-            
-            // *** STEP 2 FIX: FLIP V-AXIS (BACK) ***
-            backTex.uScale = 1;
-            backTex.vScale = -1;
-            backTex.vOffset = 1;
-            // **************************************
-            
-            backMat.emissiveTexture = backTex;
-            backMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+            backMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0);
+            backMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0); 
+            backMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6);
 
-            const edgeMat = new BABYLON.StandardMaterial("edgeMat", scene);
-            edgeMat.diffuseColor = new BABYLON.Color3(1, 0.84, 0);
+            const backTex = new BABYLON.Texture("coin_back.png", scene);
+            backTex.wAng = Math.PI; 
+            fixTexture(backTex); // <--- APPLY THE FIX
+            backMat.diffuseTexture = backTex;
             
+            const backBump = new BABYLON.Texture("coin_back.png", scene);
+            backBump.wAng = Math.PI;
+            fixTexture(backBump); // <--- APPLY THE FIX
+            backMat.bumpTexture = backBump;
+            backMat.bumpTexture.level = 0.4;
+
+            // 3. Edge Material (Reeded)
+            const edgeMat = new BABYLON.StandardMaterial("edgeMat", scene);
+            // MATCHING COLOR EXACTLY TO FACE TO "BLEND"
+            edgeMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0); 
+            edgeMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0);
+            // Dull specular to look like matte metal, not chrome
+            edgeMat.specularColor = new BABYLON.Color3(0.6, 0.5, 0.2); 
+            
+            const noiseTexture = new BABYLON.NoiseProceduralTexture("perlin", 256, scene);
+            edgeMat.bumpTexture = noiseTexture;
+            edgeMat.bumpTexture.uScale = 150; // Vertical Ridges
+            edgeMat.bumpTexture.vScale = 1; 
+            edgeMat.bumpTexture.level = 2.0;
+
             // --- GEOMETRY ---
             const coinNode = new BABYLON.TransformNode("root");
-            
-            const coinCore = BABYLON.MeshBuilder.CreateCylinder("core", { diameter: 3.0, height: 0.15, tessellation: 64 }, scene);
-            coinCore.material = edgeMat;
-            coinCore.rotation.x = Math.PI / 2;
-            coinCore.parent = coinNode;
 
-            const frontDisc = BABYLON.MeshBuilder.CreateDisc("frontDisc", { radius: 1.5, tessellation: 64 }, scene);
-            frontDisc.material = frontMat;
-            frontDisc.position.z = -0.076;
-            frontDisc.parent = coinNode;
+            // Edge (Diameter 3.0)
+            const coinEdge = BABYLON.MeshBuilder.CreateCylinder("edge", { 
+                diameter: 3.0, 
+                height: 0.15, 
+                tessellation: 128 
+            }, scene);
+            coinEdge.material = edgeMat;
+            coinEdge.parent = coinNode;
 
-            const backDisc = BABYLON.MeshBuilder.CreateDisc("backDisc", { radius: 1.5, tessellation: 64 }, scene);
-            backDisc.material = backMat;
-            backDisc.position.z = 0.076;
-            backDisc.rotation.y = Math.PI;
-            backDisc.parent = coinNode;
+            // Front Face (Diameter 3.0 - MATCHED EXACTLY)
+            const coinFront = BABYLON.MeshBuilder.CreateCylinder("front", { 
+                diameter: 3.0, 
+                height: 0.001, 
+                tessellation: 128 
+            }, scene);
+            coinFront.material = frontMat;
+            coinFront.position.y = 0.076; 
+            coinFront.parent = coinNode;
+
+            // Back Face (Diameter 3.0 - MATCHED EXACTLY)
+            const coinBack = BABYLON.MeshBuilder.CreateCylinder("back", { 
+                diameter: 3.0, 
+                height: 0.001, 
+                tessellation: 128 
+            }, scene);
+            coinBack.material = backMat;
+            coinBack.position.y = -0.076; 
+            coinBack.rotation.x = Math.PI; 
+            coinBack.rotation.y = Math.PI; 
+            coinBack.parent = coinNode;
+
+            coinNode.rotation.x = Math.PI / 2;
 
             scene.registerBeforeRender(function () {
-                coinNode.rotation.y -= 0.002; 
+                coinNode.rotation.y += 0.005; 
             });
 
             return scene;
