@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Interactive Coin - Step 1: Mirror Fix</title>
+    <title>Interactive Coin - Step 2: Axis Flip Fix</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     
@@ -44,11 +44,12 @@
             const frontMat = new BABYLON.StandardMaterial("frontMat", scene);
             const frontTex = new BABYLON.Texture("coin_front.png", scene);
             
-            // *** STEP 1 FIX: HORIZONTAL MIRROR FLIP ***
-            // This forces the image to flip horizontally so the man faces Right
-            frontTex.uScale = -1; 
-            frontTex.uOffset = 1; // Shifts image back into view after flipping
-            // ******************************************
+            // *** STEP 2 FIX: FLIP V-AXIS INSTEAD OF U-AXIS ***
+            // If uScale flipped it Vertical, then vScale must flip it Horizontal.
+            frontTex.uScale = 1; 
+            frontTex.vScale = -1; // Flip the OTHER axis
+            frontTex.vOffset = 1; // Reset position
+            // ************************************************
             
             frontMat.emissiveTexture = frontTex;
             frontMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
@@ -56,10 +57,11 @@
             const backMat = new BABYLON.StandardMaterial("backMat", scene);
             const backTex = new BABYLON.Texture("coin_back.png", scene);
             
-            // *** STEP 1 FIX: HORIZONTAL MIRROR FLIP (BACK) ***
-            backTex.uScale = -1;
-            backTex.uOffset = 1;
-            // *************************************************
+            // *** STEP 2 FIX: FLIP V-AXIS (BACK) ***
+            backTex.uScale = 1;
+            backTex.vScale = -1;
+            backTex.vOffset = 1;
+            // **************************************
             
             backMat.emissiveTexture = backTex;
             backMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
