@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Commemorative Coin</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    
+    <style>
+        html, body {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #2a2a2a; /* Dark background for contrast */
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+
+        const createScene = function () {
+            const scene = new BABYLON.Scene(engine);
+            // Set a dark clear color to match background styles
+            scene.clearColor = new BABYLON.Color4(0.16, 0.16, 0.16, 1);
+
+            // --- Camera ---
+            // ArcRotateCamera allows orbital rotation around the target (the coin)
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 5, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 50; // Slower zoom
+            camera.minZ = 0.1;
+
+            // --- Realistic HDR Lighting (PBR Environment) ---
+            // Using a default Babylon environment studio lighting file for realistic reflections.
+            const hdrTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/environmentSpecular.env", scene);
+            scene.environmentTexture = hdrTexture;
+            scene.createDefaultSkybox(hdrTexture, true, 1000, 0.3); // Optional: Adds a blurred background
+
+            // --- Coin Geometry ---
+            // A cylinder with a small height makes a coin.
+            // Tessellation determines how smooth the round edge is.
+            const coinMesh = BABYLON.MeshBuilder.CreateCylinder("coin", {
+                diameter: 3,
+                height: 0.15,
+                tessellation: 128,
+                faceUV: [
+                    new BABYLON.Vector4(0, 0, 1, 1), // Bottom face (Back)
+                    new BABYLON.Vector4(0, 0, 1, 0.1), // Side face (Edge) - stretched thin
+                    new BABYLON.Vector4(0, 0, 1, 1)  // Top face (Front)
+                ]
+            }, scene);
+
+            // Rotate coin upright initially
+            coinMesh.rotation.x = Math.PI / 2;
+
+            // --- Materials (PBR Gold) ---
+            // PBR materials are essential for realistic metallic looks.
+
+            // 1. Shared Gold Properties
+            function setupGoldMaterial(mat) {
+                mat.metallic = 1.0; // Pure metal
+                mat.roughness = 0.25; // Slight matte finish, not mirror sharp
+                mat.albedoColor = new BABYLON.Color3(1.0, 0.84, 0.0); // Gold base color
+                mat.reflectionColor = new BABYLON.Color3(1.0, 0.9, 0.7); // Tinge Reflection
+            }
+
+            // Material for the Front
+            const frontMat = new BABYLON.PBRMaterial("frontMat", scene);
+            setupGoldMaterial(frontMat);
+            frontMat.albedoTexture = new BABYLON.Texture("coin_front.png", scene);
+            frontMat.albedoTexture.hasAlpha = false;
+            frontMat.useAlphaFromAlbedoTexture = false;
+            // Use the image as a bump map for 3D relief effect
+            frontMat.bumpTexture = new BABYLON.Texture("coin_front.png", scene);
+            frontMat.bumpTexture.level = 0.3; // Strength of the relief effect
+
+            // Material for the Back
+            const backMat = new BABYLON.PBRMaterial("backMat", scene);
+            setupGoldMaterial(backMat);
+            // Important: Flip the back texture horizontally so it reads correctly when rotated
+            backMat.albedoTexture = new BABYLON.Texture("coin_back.png", scene, false, true);
+            backMat.albedoTexture.wAng = Math.PI; 
+            
+            // Material for the Edge (Reeded/Milled look)
+            const edgeMat = new BABYLON.PBRMaterial("edgeMat", scene);
+            setupGoldMaterial(edgeMat);
+            edgeMat.roughness = 0.4; // Slightly rougher edge
+            // Using a noise texture to simulate ridges on the edge
+            const noiseTexture = new BABYLON.NoiseProceduralTexture("perlin", 256, scene);
+            noiseTexture.animationSpeedFactor = 0;
+            noiseTexture.octaves = 3;
+            noiseTexture.persistence = 0.8;
+            edgeMat.bumpTexture = noiseTexture;
+            edgeMat.bumpTexture.level = 2.0; // Strong bump for ridges
+            edgeMat.bumpTexture.uScale = 50; // Scales noise horizontally to create vertical ridges
+
+            // --- Applying Materials to Mesh Faces ---
+            // Cylinder faces: 0=bottom, 1=side, 2=top
+            const coinMultiMat = new BABYLON.MultiMaterial("coinMulti", scene);
+            coinMultiMat.subMaterials.push(backMat);
+            coinMultiMat.subMaterials.push(edgeMat);
+            coinMultiMat.subMaterials.push(frontMat);
+
+            coinMesh.material = coinMultiMat;
+
+            // --- Optional Auto-Rotation ---
+            scene.registerBeforeRender(function () {
+                coinMesh.rotation.y += 0.005; // Slow spin on Y axis
+            });
+
+            return scene;
+        };
+
+        const scene = createScene();
+
+        engine.runRenderLoop(function () {
+            scene.render();
+        });
+
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
