@@ -41,70 +41,86 @@
             camera.minZ = 0.1;
 
             // --- LIGHTING ---
-            // Using slightly warmer lights to enhance the gold
             const light1 = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             light1.intensity = 1.2;
-            light1.diffuse = new BABYLON.Color3(1, 0.95, 0.8); // Warm light
+            light1.diffuse = new BABYLON.Color3(1, 0.95, 0.8); // Warm Gold Light
 
             const light2 = new BABYLON.HemisphericLight("light2", new BABYLON.Vector3(0, -1, 0), scene);
             light2.intensity = 0.8; 
 
             const pointLight = new BABYLON.PointLight("pointLight", new BABYLON.Vector3(0, 0, 0), scene);
             pointLight.parent = camera;
-            pointLight.intensity = 0.7;
+            pointLight.intensity = 0.6;
 
             // --- MATERIALS ---
             
+            // Shared function to fix the texture border issues
+            function fixTexture(tex) {
+                // 1. CLAMP: Prevents the black edge from repeating
+                tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+                tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+                
+                // 2. ZOOM: Push the black pixels OFF the edge of the mesh
+                tex.uScale = 1.03; // 3% zoom
+                tex.vScale = 1.03;
+                
+                // 3. CENTER: Re-align after zooming
+                tex.uOffset = -0.015; 
+                tex.vOffset = -0.015;
+            }
+
             // 1. Front Material
             const frontMat = new BABYLON.StandardMaterial("frontMat", scene);
             frontMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0);
-            frontMat.emissiveColor = new BABYLON.Color3(0.3, 0.25, 0.0); 
-            frontMat.specularColor = new BABYLON.Color3(1, 0.9, 0.5); // Gold highlights (not white/chrome)
+            frontMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0); 
+            frontMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6); // Soft Gold Highlight
             
             const frontTex = new BABYLON.Texture("coin_front.png", scene);
             frontTex.wAng = Math.PI; 
+            fixTexture(frontTex); // <--- APPLY THE FIX
             frontMat.diffuseTexture = frontTex; 
             
             const frontBump = new BABYLON.Texture("coin_front.png", scene);
             frontBump.wAng = Math.PI;
+            fixTexture(frontBump); // <--- APPLY THE FIX TO BUMP TOO
             frontMat.bumpTexture = frontBump;
-            frontMat.bumpTexture.level = 0.5;
+            frontMat.bumpTexture.level = 0.4;
 
             // 2. Back Material
             const backMat = new BABYLON.StandardMaterial("backMat", scene);
             backMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0);
-            backMat.emissiveColor = new BABYLON.Color3(0.3, 0.25, 0.0); 
-            backMat.specularColor = new BABYLON.Color3(1, 0.9, 0.5);
+            backMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0); 
+            backMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6);
 
             const backTex = new BABYLON.Texture("coin_back.png", scene);
-            backTex.wAng = Math.PI; // Permanent 180 Rotation
+            backTex.wAng = Math.PI; 
+            fixTexture(backTex); // <--- APPLY THE FIX
             backMat.diffuseTexture = backTex;
             
             const backBump = new BABYLON.Texture("coin_back.png", scene);
-            backBump.wAng = Math.PI; 
+            backBump.wAng = Math.PI;
+            fixTexture(backBump); // <--- APPLY THE FIX
             backMat.bumpTexture = backBump;
-            backMat.bumpTexture.level = 0.5;
+            backMat.bumpTexture.level = 0.4;
 
-            // 3. Edge Material (FIXED: Matte Gold, Deep Ridges)
+            // 3. Edge Material (Reeded)
             const edgeMat = new BABYLON.StandardMaterial("edgeMat", scene);
-            edgeMat.diffuseColor = new BABYLON.Color3(0.85, 0.65, 0.0); // Deep Gold
+            // MATCHING COLOR EXACTLY TO FACE TO "BLEND"
+            edgeMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0); 
             edgeMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0);
-            
-            // KEY FIX: Change specular to Gold (not White) to kill the "Chrome" look
-            edgeMat.specularColor = new BABYLON.Color3(0.85, 0.65, 0.0); 
-            edgeMat.specularPower = 16; // Low power spreads the light (Matte finish)
+            // Dull specular to look like matte metal, not chrome
+            edgeMat.specularColor = new BABYLON.Color3(0.6, 0.5, 0.2); 
             
             const noiseTexture = new BABYLON.NoiseProceduralTexture("perlin", 256, scene);
-            noiseTexture.animationSpeedFactor = 0;
             edgeMat.bumpTexture = noiseTexture;
-            edgeMat.bumpTexture.uScale = 200; // Tighter ridges
+            edgeMat.bumpTexture.uScale = 150; // Vertical Ridges
             edgeMat.bumpTexture.vScale = 1; 
-            edgeMat.bumpTexture.level = 5.0; // MAX DEPTH for 3D look
+            edgeMat.bumpTexture.level = 2.0;
 
             // --- GEOMETRY ---
             const coinNode = new BABYLON.TransformNode("root");
 
-            // Edge (The Main Body) - Diameter 3.0
+            // Edge (Diameter 3.0)
             const coinEdge = BABYLON.MeshBuilder.CreateCylinder("edge", { 
                 diameter: 3.0, 
                 height: 0.15, 
@@ -113,10 +129,9 @@
             coinEdge.material = edgeMat;
             coinEdge.parent = coinNode;
 
-            // Front Face (THE BLACK RING KILLER)
-            // Diameter reduced to 2.85. This creates a visible Gold Rim around the image.
+            // Front Face (Diameter 3.0 - MATCHED EXACTLY)
             const coinFront = BABYLON.MeshBuilder.CreateCylinder("front", { 
-                diameter: 2.85, 
+                diameter: 3.0, 
                 height: 0.001, 
                 tessellation: 128 
             }, scene);
@@ -124,10 +139,9 @@
             coinFront.position.y = 0.076; 
             coinFront.parent = coinNode;
 
-            // Back Face (THE BLACK RING KILLER)
-            // Diameter reduced to 2.85
+            // Back Face (Diameter 3.0 - MATCHED EXACTLY)
             const coinBack = BABYLON.MeshBuilder.CreateCylinder("back", { 
-                diameter: 2.85, 
+                diameter: 3.0, 
                 height: 0.001, 
                 tessellation: 128 
             }, scene);
