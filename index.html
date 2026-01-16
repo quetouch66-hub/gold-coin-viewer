@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Interactive Coin - Step 1: Rotation Fix</title>
+    <title>Interactive Coin - Step 1: Mirror Fix</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     
@@ -44,9 +44,11 @@
             const frontMat = new BABYLON.StandardMaterial("frontMat", scene);
             const frontTex = new BABYLON.Texture("coin_front.png", scene);
             
-            // *** STEP 1 FIX: FLIP 180 DEGREES ***
-            frontTex.wAng = Math.PI; 
-            // ************************************
+            // *** STEP 1 FIX: HORIZONTAL MIRROR FLIP ***
+            // This forces the image to flip horizontally so the man faces Right
+            frontTex.uScale = -1; 
+            frontTex.uOffset = 1; // Shifts image back into view after flipping
+            // ******************************************
             
             frontMat.emissiveTexture = frontTex;
             frontMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
@@ -54,9 +56,10 @@
             const backMat = new BABYLON.StandardMaterial("backMat", scene);
             const backTex = new BABYLON.Texture("coin_back.png", scene);
             
-            // *** STEP 1 FIX: FLIP 180 DEGREES ***
-            backTex.wAng = Math.PI;
-            // ************************************
+            // *** STEP 1 FIX: HORIZONTAL MIRROR FLIP (BACK) ***
+            backTex.uScale = -1;
+            backTex.uOffset = 1;
+            // *************************************************
             
             backMat.emissiveTexture = backTex;
             backMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
