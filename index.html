@@ -54,20 +54,23 @@
 
             // --- MATERIALS ---
             
-            // Shared function with the CORRECTED settings
-            function fixTexture(tex) {
-                tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-                tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-                
-                // 1. HORIZONTAL FLIP + ZOOM (Fixes Facing Direction & Black Ring)
+            // Shared function to Apply the "Top to Bottom" Flip
+            function applyFlipSettings(tex) {
+                // 1. HORIZONTAL FLIP (Kept from previous)
                 tex.uScale = -1.03; 
-                
-                // 2. OFFSET ADJUSTMENT (Needed because of the Flip)
                 tex.uOffset = 1.015; 
                 
-                // 3. VERTICAL ZOOM
-                tex.vScale = 1.03;
-                tex.vOffset = -0.015;
+                // 2. VERTICAL FLIP (New Instruction: Top goes to Bottom)
+                // Changing 1.03 to -1.03 flips it vertically
+                tex.vScale = -1.03;
+                tex.vOffset = 1.015; // Re-center after flip
+
+                // 3. ROTATION
+                tex.wAng = 0; 
+                
+                // 4. CLAMPING (Prevents repeat)
+                tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+                tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
             }
 
             // 1. Front Material
@@ -77,39 +80,15 @@
             frontMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6); 
             
             const frontTex = new BABYLON.Texture("coin_front.png", scene);
-            frontTex.wAng = Math.PI; // Keeps it Upright
-            fixTexture(frontTex);    // Applies Flip & Zoom
+            applyFlipSettings(frontTex); 
             frontMat.diffuseTexture = frontTex; 
             
             const frontBump = new BABYLON.Texture("coin_front.png", scene);
-            frontBump.wAng = Math.PI;
-            fixTexture(frontBump);
+            applyFlipSettings(frontBump);
             frontMat.bumpTexture = frontBump;
             frontMat.bumpTexture.level = 0.4;
 
             // 2. Back Material
             const backMat = new BABYLON.StandardMaterial("backMat", scene);
             backMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0);
-            backMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0); 
-            backMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6);
-
-            const backTex = new BABYLON.Texture("coin_back.png", scene);
-            backTex.wAng = Math.PI; // Keeps it Upright
-            fixTexture(backTex);    // Applies Flip & Zoom
-            backMat.diffuseTexture = backTex;
-            
-            const backBump = new BABYLON.Texture("coin_back.png", scene);
-            backBump.wAng = Math.PI;
-            fixTexture(backBump);
-            backMat.bumpTexture = backBump;
-            backMat.bumpTexture.level = 0.4;
-
-            // 3. Edge Material
-            const edgeMat = new BABYLON.StandardMaterial("edgeMat", scene);
-            edgeMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0); 
-            edgeMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0);
-            edgeMat.specularColor = new BABYLON.Color3(0.6, 0.5, 0.2); 
-            
-            const noiseTexture = new BABYLON.NoiseProceduralTexture("perlin", 256, scene);
-            edgeMat.bumpTexture = noiseTexture;
-            edgeMat.bumpTexture.uScale = 150;
+            backMat.emissiveColor = new BABYLON.Color3(0.2, 0.
