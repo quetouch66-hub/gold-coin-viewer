@@ -5,6 +5,7 @@
     <title>Interactive Commemorative Coin</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
     
     <style>
         html, body {
@@ -13,7 +14,7 @@
             height: 100%;
             margin: 0;
             padding: 0;
-            background-color: #dcdcdc; /* Light Grey Background */
+            background-color: #dcdcdc; 
         }
         #renderCanvas {
             width: 100%;
@@ -32,7 +33,6 @@
 
         const createScene = function () {
             const scene = new BABYLON.Scene(engine);
-            // Soft white background to contrast with the gold
             scene.clearColor = new BABYLON.Color4(0.95, 0.95, 0.95, 1);
 
             // --- CAMERA ---
@@ -42,64 +42,45 @@
             camera.minZ = 0.1;
 
             // --- LIGHTING ---
-            // We use simple lights just for the Edge. The faces will be self-lit (Emissive) to look like the photos.
             const light1 = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             light1.intensity = 1.0;
             const light2 = new BABYLON.HemisphericLight("light2", new BABYLON.Vector3(0, -1, 0), scene);
             light2.intensity = 0.8; 
 
-            // --- SETTINGS ---
+            // --- COIN PARAMETERS ---
             const coinDiameter = 3.0;
             const coinThickness = 0.15;
-            // SCALE FACTOR: This zooms in on your image to cut off the black background.
-            // 1.1 = 10% Zoom. If you still see black, increase this to 1.15 or 1.2
-            const textureZoom = 1.12; 
 
             // --- MATERIALS ---
 
-            // 1. Edge Material (Solid Gold)
+            // 1. Edge Material
             const edgeMat = new BABYLON.StandardMaterial("edgeMat", scene);
-            edgeMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0); 
-            edgeMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6); // Soft shine
+            edgeMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0); // Gold
+            edgeMat.specularColor = new BABYLON.Color3(0.6, 0.5, 0.2); // Matte Shine
             
-            // Add ridges to the edge
             const noiseTexture = new BABYLON.NoiseProceduralTexture("perlin", 256, scene);
             edgeMat.bumpTexture = noiseTexture;
-            edgeMat.bumpTexture.uScale = 100; // Vertical ridges
+            edgeMat.bumpTexture.uScale = 100;
             edgeMat.bumpTexture.vScale = 1; 
             edgeMat.bumpTexture.level = 2.0;
 
-            // 2. Front Image Material (Self-Lit)
+            // 2. Front Material
             const frontMat = new BABYLON.StandardMaterial("frontMat", scene);
-            // Use Emissive so it looks EXACTLY like the photo (bright and clear)
             frontMat.emissiveTexture = new BABYLON.Texture("coin_front.png", scene);
-            frontMat.diffuseColor = new BABYLON.Color3(0, 0, 0); // Disable external light influence
-            frontMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2); // Slight shine overlay
-            
-            // ZOOM FIX: Scale texture to crop borders
-            frontMat.emissiveTexture.uScale = textureZoom;
-            frontMat.emissiveTexture.vScale = textureZoom;
-            frontMat.emissiveTexture.uOffset = -(textureZoom - 1) / 2; // Re-center
-            frontMat.emissiveTexture.vOffset = -(textureZoom - 1) / 2;
+            frontMat.diffuseColor = new BABYLON.Color3(0, 0, 0); 
+            // FAILSAFE: Set background to Gold so if image clips, it shows gold not black
+            frontMat.emissiveColor = new BABYLON.Color3(1.0, 0.84, 0.0); 
 
-            // 3. Back Image Material (Self-Lit)
+            // 3. Back Material
             const backMat = new BABYLON.StandardMaterial("backMat", scene);
             backMat.emissiveTexture = new BABYLON.Texture("coin_back.png", scene);
             backMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
-            backMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-            
-            // ZOOM FIX
-            backMat.emissiveTexture.uScale = textureZoom;
-            backMat.emissiveTexture.vScale = textureZoom;
-            backMat.emissiveTexture.uOffset = -(textureZoom - 1) / 2;
-            backMat.emissiveTexture.vOffset = -(textureZoom - 1) / 2;
-            // No rotation needed here because we will rotate the Disc Mesh itself
+            backMat.emissiveColor = new BABYLON.Color3(1.0, 0.84, 0.0);
 
-            // --- GEOMETRY: THE SANDWICH ---
-            
+            // --- GEOMETRY ---
             const coinNode = new BABYLON.TransformNode("root");
 
-            // A. The Core (Cylinder Edge)
+            // Edge (Core)
             const coinCore = BABYLON.MeshBuilder.CreateCylinder("core", {
                 diameter: coinDiameter,
                 height: coinThickness,
@@ -107,38 +88,90 @@
             }, scene);
             coinCore.material = edgeMat;
             coinCore.parent = coinNode;
-            // Rotate core to stand up
             coinCore.rotation.x = Math.PI / 2;
 
-            // B. The Front Face (Disc)
-            // A Disc is perfect for images. It has no "side" to cause black rings.
+            // Front Disc
             const frontDisc = BABYLON.MeshBuilder.CreateDisc("frontDisc", {
                 radius: coinDiameter / 2,
                 tessellation: 64
             }, scene);
             frontDisc.material = frontMat;
-            // Position slightly in front of the core
-            frontDisc.position.z = -coinThickness / 2 - 0.001; 
+            frontDisc.position.z = -coinThickness / 2 - 0.002; 
             frontDisc.parent = coinNode;
 
-            // C. The Back Face (Disc)
+            // Back Disc
             const backDisc = BABYLON.MeshBuilder.CreateDisc("backDisc", {
                 radius: coinDiameter / 2,
                 tessellation: 64
             }, scene);
             backDisc.material = backMat;
-            // Position slightly behind the core
-            backDisc.position.z = coinThickness / 2 + 0.001;
-            // Rotate 180 degrees to face outwards
-            backDisc.rotation.y = Math.PI; 
+            backDisc.position.z = coinThickness / 2 + 0.002;
+            backDisc.rotation.y = Math.PI; // Face Backwards
             backDisc.parent = coinNode;
-
 
             // --- ANIMATION ---
             scene.registerBeforeRender(function () {
-                // Spin the whole group
-                coinNode.rotation.y -= 0.005; 
+                coinNode.rotation.y -= 0.002; 
             });
+
+            // --- THE CONTROL PANEL (GUI) ---
+            // This allows YOU to fix the image perfectly live.
+            const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+            const panel = new BABYLON.GUI.StackPanel();
+            panel.width = "220px";
+            panel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+            panel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+            panel.paddingTop = "20px";
+            panel.paddingLeft = "20px";
+            advancedTexture.addControl(panel);
+
+            // Helper to create sliders
+            const createSlider = function(headerText, min, max, initial, onChange) {
+                const header = new BABYLON.GUI.TextBlock();
+                header.text = headerText + ": " + initial.toFixed(2);
+                header.height = "30px";
+                header.color = "white";
+                header.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                panel.addControl(header);
+
+                const slider = new BABYLON.GUI.Slider();
+                slider.minimum = min;
+                slider.maximum = max;
+                slider.value = initial;
+                slider.height = "20px";
+                slider.width = "200px";
+                slider.onValueChangedObservable.add(function(value) {
+                    header.text = headerText + ": " + value.toFixed(2);
+                    onChange(value);
+                });
+                panel.addControl(slider);
+            }
+
+            // 1. ZOOM CONTROL (Fixes the Black/Grey Border)
+            // Default 1.28 (28% zoom in)
+            const updateZoom = function(val) {
+                // Front
+                frontMat.emissiveTexture.uScale = val;
+                frontMat.emissiveTexture.vScale = val;
+                frontMat.emissiveTexture.uOffset = -(val - 1) / 2;
+                frontMat.emissiveTexture.vOffset = -(val - 1) / 2;
+                // Back
+                backMat.emissiveTexture.uScale = val;
+                backMat.emissiveTexture.vScale = val;
+                backMat.emissiveTexture.uOffset = -(val - 1) / 2;
+                backMat.emissiveTexture.vOffset = -(val - 1) / 2;
+            };
+            // Initial run
+            updateZoom(1.28); 
+            createSlider("Image Zoom", 1.0, 2.0, 1.28, updateZoom);
+
+            // 2. BACK ROTATION CONTROL (Fixes Upside Down)
+            const updateRotation = function(val) {
+                backMat.emissiveTexture.wAng = val;
+            }
+            // Start at 3.14 (180 degrees) - Try moving this if it's still wrong
+            backMat.emissiveTexture.wAng = 3.14; 
+            createSlider("Back Rotation", 0, 6.28, 3.14, updateRotation);
 
             return scene;
         };
