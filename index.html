@@ -43,7 +43,7 @@
             // --- LIGHTING ---
             const light1 = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
             light1.intensity = 1.2;
-            light1.diffuse = new BABYLON.Color3(1, 0.95, 0.8); // Warm Gold Light
+            light1.diffuse = new BABYLON.Color3(1, 0.95, 0.8);
 
             const light2 = new BABYLON.HemisphericLight("light2", new BABYLON.Vector3(0, -1, 0), scene);
             light2.intensity = 0.8; 
@@ -54,35 +54,37 @@
 
             // --- MATERIALS ---
             
-            // Shared function to fix the texture border issues
-            function fixTexture(tex) {
-                // 1. CLAMP: Prevents the black edge from repeating
-                tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-                tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+            // Helper to Apply the "Step 2" Flip AND the "Zoom" Fix
+            function applyCorrectOrientation(tex) {
+                // 1. HORIZONTAL FLIP (Fixes Mirroring & Upside Down)
+                // We use vScale = -1 from Step 2
                 
-                // 2. ZOOM: Push the black pixels OFF the edge of the mesh
-                tex.uScale = 1.03; // 3% zoom
-                tex.vScale = 1.03;
+                // 2. ZOOM (Fixes Black Ring)
+                // We combine the Flip (-1) with the Zoom (1.03) -> -1.03
                 
-                // 3. CENTER: Re-align after zooming
-                tex.uOffset = -0.015; 
-                tex.vOffset = -0.015;
+                tex.uScale = 1.03;      // Zoom U
+                tex.vScale = -1.03;     // Zoom V + Flip V
+                
+                // 3. OFFSETS (Re-center image)
+                tex.uOffset = -0.015;   // Center U
+                tex.vOffset = 1.015;    // Center V (Logic: Start at 1.0 + half the zoom)
+                
+                // 4. Reset Rotation (Step 2 proved we don't need wAng)
+                tex.wAng = 0;
             }
 
             // 1. Front Material
             const frontMat = new BABYLON.StandardMaterial("frontMat", scene);
             frontMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0);
             frontMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0); 
-            frontMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6); // Soft Gold Highlight
+            frontMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6); 
             
             const frontTex = new BABYLON.Texture("coin_front.png", scene);
-            frontTex.wAng = Math.PI; 
-            fixTexture(frontTex); // <--- APPLY THE FIX
+            applyCorrectOrientation(frontTex); // <--- APPLY THE COMBINED FIX
             frontMat.diffuseTexture = frontTex; 
             
             const frontBump = new BABYLON.Texture("coin_front.png", scene);
-            frontBump.wAng = Math.PI;
-            fixTexture(frontBump); // <--- APPLY THE FIX TO BUMP TOO
+            applyCorrectOrientation(frontBump);
             frontMat.bumpTexture = frontBump;
             frontMat.bumpTexture.level = 0.4;
 
@@ -93,34 +95,30 @@
             backMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6);
 
             const backTex = new BABYLON.Texture("coin_back.png", scene);
-            backTex.wAng = Math.PI; 
-            fixTexture(backTex); // <--- APPLY THE FIX
+            applyCorrectOrientation(backTex); // <--- APPLY THE COMBINED FIX
             backMat.diffuseTexture = backTex;
             
             const backBump = new BABYLON.Texture("coin_back.png", scene);
-            backBump.wAng = Math.PI;
-            fixTexture(backBump); // <--- APPLY THE FIX
+            applyCorrectOrientation(backBump);
             backMat.bumpTexture = backBump;
             backMat.bumpTexture.level = 0.4;
 
-            // 3. Edge Material (Reeded)
+            // 3. Edge Material
             const edgeMat = new BABYLON.StandardMaterial("edgeMat", scene);
-            // MATCHING COLOR EXACTLY TO FACE TO "BLEND"
             edgeMat.diffuseColor = new BABYLON.Color3(1.0, 0.84, 0.0); 
             edgeMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.0);
-            // Dull specular to look like matte metal, not chrome
             edgeMat.specularColor = new BABYLON.Color3(0.6, 0.5, 0.2); 
             
             const noiseTexture = new BABYLON.NoiseProceduralTexture("perlin", 256, scene);
             edgeMat.bumpTexture = noiseTexture;
-            edgeMat.bumpTexture.uScale = 150; // Vertical Ridges
+            edgeMat.bumpTexture.uScale = 150; 
             edgeMat.bumpTexture.vScale = 1; 
             edgeMat.bumpTexture.level = 2.0;
 
             // --- GEOMETRY ---
             const coinNode = new BABYLON.TransformNode("root");
 
-            // Edge (Diameter 3.0)
+            // Edge
             const coinEdge = BABYLON.MeshBuilder.CreateCylinder("edge", { 
                 diameter: 3.0, 
                 height: 0.15, 
@@ -129,7 +127,7 @@
             coinEdge.material = edgeMat;
             coinEdge.parent = coinNode;
 
-            // Front Face (Diameter 3.0 - MATCHED EXACTLY)
+            // Front Face
             const coinFront = BABYLON.MeshBuilder.CreateCylinder("front", { 
                 diameter: 3.0, 
                 height: 0.001, 
@@ -139,7 +137,7 @@
             coinFront.position.y = 0.076; 
             coinFront.parent = coinNode;
 
-            // Back Face (Diameter 3.0 - MATCHED EXACTLY)
+            // Back Face
             const coinBack = BABYLON.MeshBuilder.CreateCylinder("back", { 
                 diameter: 3.0, 
                 height: 0.001, 
