@@ -32,92 +32,97 @@
 
         const createScene = function () {
             const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color4(0.16, 0.16, 0.16, 1);
+            scene.clearColor = new BABYLON.Color4(0.9, 0.9, 0.9, 1); // Light background to see contrast better
 
-            // --- Camera ---
-            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 5, BABYLON.Vector3.Zero(), scene);
+            // --- CAMERA ---
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 4.5, BABYLON.Vector3.Zero(), scene);
             camera.attachControl(canvas, true);
             camera.wheelPrecision = 50; 
             camera.minZ = 0.1;
 
-            // --- Lighting ---
+            // --- LIGHTING (The Fix for Dark Coin) ---
+            // 1. Hemispheric Light (Ambient light everywhere)
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 1.0; 
+            hemiLight.groundColor = new BABYLON.Color3(0.2, 0.2, 0.2); // Light bounces from bottom
+
+            // 2. Directional Light (The "Sun" for shiny highlights)
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.position = new BABYLON.Vector3(20, 40, 20);
+            dirLight.intensity = 2.0;
+
+            // 3. Environment Reflection (Essential for Gold)
             const hdrTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/environmentSpecular.env", scene);
             scene.environmentTexture = hdrTexture;
-            scene.createDefaultSkybox(hdrTexture, true, 1000, 0.3);
+            scene.environmentIntensity = 1.5; // Boost reflection brightness
 
             // --- MATERIALS ---
             
-            // Shared Gold Settings
             function setupGoldMaterial(mat) {
-                mat.metallic = 1.0;
-                mat.roughness = 0.3; 
-                mat.albedoColor = new BABYLON.Color3(1.0, 0.84, 0.0);
-                mat.reflectionColor = new BABYLON.Color3(1.0, 0.9, 0.7);
+                mat.metallic = 1.0; 
+                mat.roughness = 0.2; // Very shiny
+                mat.albedoColor = new BABYLON.Color3(1.0, 0.85, 0.3); // Rich Gold Color
+                mat.reflectionColor = new BABYLON.Color3(1.0, 1.0, 1.0); 
             }
 
             // 1. Front Material
             const frontMat = new BABYLON.PBRMaterial("frontMat", scene);
             setupGoldMaterial(frontMat);
-            frontMat.albedoTexture = new BABYLON.Texture("coin_front.png", scene);
-            frontMat.bumpTexture = new BABYLON.Texture("coin_front.png", scene);
+            const frontTex = new BABYLON.Texture("coin_front.png", scene);
+            frontTex.wAng = Math.PI; // <--- FIX: ROTATES IMAGE 180 DEGREES
+            frontMat.albedoTexture = frontTex;
+            
+            // Bump map for 3D relief
+            const frontBump = new BABYLON.Texture("coin_front.png", scene);
+            frontBump.wAng = Math.PI; // <--- FIX: Rotate bump map too
+            frontMat.bumpTexture = frontBump;
             frontMat.bumpTexture.level = 0.3;
 
             // 2. Back Material
             const backMat = new BABYLON.PBRMaterial("backMat", scene);
             setupGoldMaterial(backMat);
-            backMat.albedoTexture = new BABYLON.Texture("coin_back.png", scene);
-            // Note: We don't flip the texture here anymore because we will flip the MESH instead.
+            const backTex = new BABYLON.Texture("coin_back.png", scene);
+            backTex.wAng = Math.PI; // <--- FIX: ROTATES IMAGE 180 DEGREES
+            backMat.albedoTexture = backTex;
             
-            // 3. Edge Material (Reeded)
+            // Bump map for back
+            const backBump = new BABYLON.Texture("coin_back.png", scene);
+            backBump.wAng = Math.PI; // <--- FIX: Rotate bump map too
+            backMat.bumpTexture = backBump;
+            backMat.bumpTexture.level = 0.3;
+
+            // 3. Edge Material
             const edgeMat = new BABYLON.PBRMaterial("edgeMat", scene);
             setupGoldMaterial(edgeMat);
             edgeMat.roughness = 0.4;
             const noiseTexture = new BABYLON.NoiseProceduralTexture("perlin", 256, scene);
-            noiseTexture.animationSpeedFactor = 0;
-            noiseTexture.octaves = 3;
-            noiseTexture.persistence = 0.8;
             edgeMat.bumpTexture = noiseTexture;
-            edgeMat.bumpTexture.level = 2.0;
-            edgeMat.bumpTexture.uScale = 50; 
+            edgeMat.bumpTexture.level = 1.5;
 
-            // --- GEOMETRY (THE SANDWICH FIX) ---
+            // --- GEOMETRY ---
 
-            // Create a parent node to hold all pieces together
             const coinNode = new BABYLON.TransformNode("root");
 
-            // A. The Middle (Edge)
-            const coinEdge = BABYLON.MeshBuilder.CreateCylinder("edge", { 
-                diameter: 3, 
-                height: 0.15, 
-                tessellation: 128 
-            }, scene);
+            // Edge
+            const coinEdge = BABYLON.MeshBuilder.CreateCylinder("edge", { diameter: 3, height: 0.15, tessellation: 128 }, scene);
             coinEdge.material = edgeMat;
             coinEdge.parent = coinNode;
 
-            // B. The Front Face
-            const coinFront = BABYLON.MeshBuilder.CreateCylinder("front", { 
-                diameter: 3, 
-                height: 0.001, // Paper thin
-                tessellation: 128 
-            }, scene);
+            // Front Face
+            const coinFront = BABYLON.MeshBuilder.CreateCylinder("front", { diameter: 3, height: 0.001, tessellation: 128 }, scene);
             coinFront.material = frontMat;
-            coinFront.position.y = 0.076; // Sit slightly on top of the edge
+            coinFront.position.y = 0.076; 
             coinFront.parent = coinNode;
 
-            // C. The Back Face
-            const coinBack = BABYLON.MeshBuilder.CreateCylinder("back", { 
-                diameter: 3, 
-                height: 0.001, // Paper thin
-                tessellation: 128 
-            }, scene);
+            // Back Face
+            const coinBack = BABYLON.MeshBuilder.CreateCylinder("back", { diameter: 3, height: 0.001, tessellation: 128 }, scene);
             coinBack.material = backMat;
-            coinBack.position.y = -0.076; // Sit slightly below the edge
-            coinBack.rotation.x = Math.PI; // FLIP the mesh upside down so it faces out
-            coinBack.rotation.y = Math.PI; // Rotate it so text is readable (not mirrored)
+            coinBack.position.y = -0.076; 
+            coinBack.rotation.x = Math.PI; // Flip to face bottom
+            // Note: We handled the image rotation in the texture (wAng) above
             coinBack.parent = coinNode;
 
-            // --- POSITIONING ---
-            // Stand the coin upright
+            // Position Coin
             coinNode.rotation.x = Math.PI / 2;
 
             // --- ANIMATION ---
