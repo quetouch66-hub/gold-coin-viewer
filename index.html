@@ -13,7 +13,7 @@
             height: 100%;
             margin: 0;
             padding: 0;
-            background-color: #2a2a2a;
+            background-color: #f0f0f0; /* Very light background for visibility */
         }
         #renderCanvas {
             width: 100%;
@@ -32,7 +32,7 @@
 
         const createScene = function () {
             const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color4(0.9, 0.9, 0.9, 1); // Light background to see contrast better
+            scene.clearColor = new BABYLON.Color4(0.95, 0.95, 0.95, 1); // Almost white background
 
             // --- CAMERA ---
             const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 4.5, BABYLON.Vector3.Zero(), scene);
@@ -40,61 +40,70 @@
             camera.wheelPrecision = 50; 
             camera.minZ = 0.1;
 
-            // --- LIGHTING (The Fix for Dark Coin) ---
-            // 1. Hemispheric Light (Ambient light everywhere)
+            // --- RADICAL LIGHTING ADJUSTMENT ---
+            
+            // 1. General "Room" Light (Brightens everything)
             const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
-            hemiLight.intensity = 1.0; 
-            hemiLight.groundColor = new BABYLON.Color3(0.2, 0.2, 0.2); // Light bounces from bottom
+            hemiLight.intensity = 1.2; 
+            hemiLight.diffuse = new BABYLON.Color3(1, 1, 1);
+            hemiLight.groundColor = new BABYLON.Color3(0.5, 0.5, 0.5); // Reflects grey from bottom, not black
 
-            // 2. Directional Light (The "Sun" for shiny highlights)
+            // 2. Main "Sun" Light (Highlights)
             const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
             dirLight.position = new BABYLON.Vector3(20, 40, 20);
-            dirLight.intensity = 2.0;
+            dirLight.intensity = 1.5;
 
-            // 3. Environment Reflection (Essential for Gold)
+            // 3. NEW: Back "Fill" Light (Kills the dark shadows on the other side)
+            const fillLight = new BABYLON.DirectionalLight("fillLight", new BABYLON.Vector3(1, 2, 1), scene);
+            fillLight.intensity = 1.0;
+
+            // 4. Environment (Reflections) - Boosted brightness
             const hdrTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/environmentSpecular.env", scene);
             scene.environmentTexture = hdrTexture;
-            scene.environmentIntensity = 1.5; // Boost reflection brightness
+            scene.environmentIntensity = 1.5; // High reflection brightness
 
             // --- MATERIALS ---
             
             function setupGoldMaterial(mat) {
                 mat.metallic = 1.0; 
-                mat.roughness = 0.2; // Very shiny
-                mat.albedoColor = new BABYLON.Color3(1.0, 0.85, 0.3); // Rich Gold Color
+                mat.roughness = 0.35; // INCREASED: Makes it less "mirror-like" and more visible
+                mat.albedoColor = new BABYLON.Color3(1.0, 0.9, 0.6); // LIGHTER GOLD: Less orange, more yellow/white
                 mat.reflectionColor = new BABYLON.Color3(1.0, 1.0, 1.0); 
+                
+                // Force the material to be lit by all lights evenly
+                mat.usePhysicalLightFalloff = false;
             }
 
             // 1. Front Material
             const frontMat = new BABYLON.PBRMaterial("frontMat", scene);
             setupGoldMaterial(frontMat);
             const frontTex = new BABYLON.Texture("coin_front.png", scene);
-            frontTex.wAng = Math.PI; // <--- FIX: ROTATES IMAGE 180 DEGREES
+            frontTex.wAng = Math.PI; // Keep this rotation (since Front looked okay in your screenshot)
             frontMat.albedoTexture = frontTex;
             
-            // Bump map for 3D relief
             const frontBump = new BABYLON.Texture("coin_front.png", scene);
-            frontBump.wAng = Math.PI; // <--- FIX: Rotate bump map too
+            frontBump.wAng = Math.PI; 
             frontMat.bumpTexture = frontBump;
-            frontMat.bumpTexture.level = 0.3;
+            frontMat.bumpTexture.level = 0.2; // Softer bump for cleaner look
 
             // 2. Back Material
             const backMat = new BABYLON.PBRMaterial("backMat", scene);
             setupGoldMaterial(backMat);
             const backTex = new BABYLON.Texture("coin_back.png", scene);
-            backTex.wAng = Math.PI; // <--- FIX: ROTATES IMAGE 180 DEGREES
+            // *** FIX FOR UPSIDE DOWN BACK ***
+            backTex.wAng = 0; // RESET ROTATION. We removed the "Math.PI" here.
+            
             backMat.albedoTexture = backTex;
             
-            // Bump map for back
             const backBump = new BABYLON.Texture("coin_back.png", scene);
-            backBump.wAng = Math.PI; // <--- FIX: Rotate bump map too
+            backBump.wAng = 0; // RESET ROTATION for bump too
             backMat.bumpTexture = backBump;
-            backMat.bumpTexture.level = 0.3;
+            backMat.bumpTexture.level = 0.2;
 
             // 3. Edge Material
             const edgeMat = new BABYLON.PBRMaterial("edgeMat", scene);
             setupGoldMaterial(edgeMat);
-            edgeMat.roughness = 0.4;
+            edgeMat.roughness = 0.5; // Rougher edge to catch light
             const noiseTexture = new BABYLON.NoiseProceduralTexture("perlin", 256, scene);
             edgeMat.bumpTexture = noiseTexture;
             edgeMat.bumpTexture.level = 1.5;
@@ -118,11 +127,11 @@
             const coinBack = BABYLON.MeshBuilder.CreateCylinder("back", { diameter: 3, height: 0.001, tessellation: 128 }, scene);
             coinBack.material = backMat;
             coinBack.position.y = -0.076; 
-            coinBack.rotation.x = Math.PI; // Flip to face bottom
-            // Note: We handled the image rotation in the texture (wAng) above
+            coinBack.rotation.x = Math.PI; // This physically flips the mesh to the bottom
+            coinBack.rotation.y = Math.PI; // Corrects mirror effect
             coinBack.parent = coinNode;
 
-            // Position Coin
+            // Position Coin upright
             coinNode.rotation.x = Math.PI / 2;
 
             // --- ANIMATION ---
