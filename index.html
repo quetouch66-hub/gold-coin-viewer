@@ -54,22 +54,20 @@
 
             // --- MATERIALS ---
             
-            // Helper to Apply: ZOOM + MIRROR FIX + ROTATION
-            function applyCorrectOrientation(tex) {
-                // 1. ZOOM (Fixes Black Ring)
-                tex.uScale = 1.03;      
+            // Shared function with the CORRECTED settings
+            function fixTexture(tex) {
+                tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+                tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
                 
-                // 2. HORIZONTAL FLIP (Fixes Mirroring)
-                // We flip the V-Axis to make the man face Right
-                tex.vScale = -1.03;     
+                // 1. HORIZONTAL FLIP + ZOOM (Fixes Facing Direction & Black Ring)
+                tex.uScale = -1.03; 
                 
-                // 3. CENTERING OFFSETS
-                tex.uOffset = -0.015;   
-                tex.vOffset = 1.015;    
+                // 2. OFFSET ADJUSTMENT (Needed because of the Flip)
+                tex.uOffset = 1.015; 
                 
-                // 4. ROTATION (Fixes Upside Down)
-                // We MUST keep this at PI (180 degrees) so 2025 stays at the bottom
-                tex.wAng = Math.PI;
+                // 3. VERTICAL ZOOM
+                tex.vScale = 1.03;
+                tex.vOffset = -0.015;
             }
 
             // 1. Front Material
@@ -79,11 +77,13 @@
             frontMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6); 
             
             const frontTex = new BABYLON.Texture("coin_front.png", scene);
-            applyCorrectOrientation(frontTex); 
+            frontTex.wAng = Math.PI; // Keeps it Upright
+            fixTexture(frontTex);    // Applies Flip & Zoom
             frontMat.diffuseTexture = frontTex; 
             
             const frontBump = new BABYLON.Texture("coin_front.png", scene);
-            applyCorrectOrientation(frontBump);
+            frontBump.wAng = Math.PI;
+            fixTexture(frontBump);
             frontMat.bumpTexture = frontBump;
             frontMat.bumpTexture.level = 0.4;
 
@@ -94,11 +94,13 @@
             backMat.specularColor = new BABYLON.Color3(1, 0.9, 0.6);
 
             const backTex = new BABYLON.Texture("coin_back.png", scene);
-            applyCorrectOrientation(backTex);
+            backTex.wAng = Math.PI; // Keeps it Upright
+            fixTexture(backTex);    // Applies Flip & Zoom
             backMat.diffuseTexture = backTex;
             
             const backBump = new BABYLON.Texture("coin_back.png", scene);
-            applyCorrectOrientation(backBump);
+            backBump.wAng = Math.PI;
+            fixTexture(backBump);
             backMat.bumpTexture = backBump;
             backMat.bumpTexture.level = 0.4;
 
@@ -110,62 +112,4 @@
             
             const noiseTexture = new BABYLON.NoiseProceduralTexture("perlin", 256, scene);
             edgeMat.bumpTexture = noiseTexture;
-            edgeMat.bumpTexture.uScale = 150; 
-            edgeMat.bumpTexture.vScale = 1; 
-            edgeMat.bumpTexture.level = 2.0;
-
-            // --- GEOMETRY ---
-            const coinNode = new BABYLON.TransformNode("root");
-
-            // Edge
-            const coinEdge = BABYLON.MeshBuilder.CreateCylinder("edge", { 
-                diameter: 3.0, 
-                height: 0.15, 
-                tessellation: 128 
-            }, scene);
-            coinEdge.material = edgeMat;
-            coinEdge.parent = coinNode;
-
-            // Front Face
-            const coinFront = BABYLON.MeshBuilder.CreateCylinder("front", { 
-                diameter: 3.0, 
-                height: 0.001, 
-                tessellation: 128 
-            }, scene);
-            coinFront.material = frontMat;
-            coinFront.position.y = 0.076; 
-            coinFront.parent = coinNode;
-
-            // Back Face
-            const coinBack = BABYLON.MeshBuilder.CreateCylinder("back", { 
-                diameter: 3.0, 
-                height: 0.001, 
-                tessellation: 128 
-            }, scene);
-            coinBack.material = backMat;
-            coinBack.position.y = -0.076; 
-            coinBack.rotation.x = Math.PI; 
-            coinBack.rotation.y = Math.PI; 
-            coinBack.parent = coinNode;
-
-            coinNode.rotation.x = Math.PI / 2;
-
-            scene.registerBeforeRender(function () {
-                coinNode.rotation.y += 0.005; 
-            });
-
-            return scene;
-        };
-
-        const scene = createScene();
-
-        engine.runRenderLoop(function () {
-            scene.render();
-        });
-
-        window.addEventListener("resize", function () {
-            engine.resize();
-        });
-    </script>
-</body>
-</html>
+            edgeMat.bumpTexture.uScale = 150;
